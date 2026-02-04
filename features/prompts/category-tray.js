@@ -508,20 +508,97 @@ function convertToTrayMode() {
         // ALWAYS set up drop zone for all sections (so you can drag prompts INTO them)
         setupSectionDropZone(section, summary);
 
-        // If no prompts in DOM and no cache, this section has no direct prompts
-        // But still mark it as converted and set up basic structure for parent sections
+        // If no prompts in DOM and no cache, check if this has sub-sections
         if (!hasPromptsInDOM && !cachedPromptIds) {
-            console.log('[NemoTray] No direct prompts in section (parent with sub-sections only):', sectionName);
+            if (hasSubSections) {
+                console.log('[NemoTray] Parent section with sub-sections only:', sectionName);
+                // Collect prompts from sub-sections
+                const sectionPromptIds = [];
+                const subSections = content.querySelectorAll(':scope > details.nemo-engine-section');
+                subSections.forEach(subSection => {
+                    const subSummary = subSection.querySelector('summary');
+                    const subNameEl = subSummary?.querySelector('.completion_prompt_manager_prompt_name a');
+                    const subName = subNameEl?.textContent?.trim() || 'Sub-Section';
 
-            // Mark as converted but with empty prompts
-            section.dataset.trayConverted = 'true';
-            section.classList.add('nemo-tray-section');
-            section._nemoPromptIds = [];
+                    // Add a sub-section header marker
+                    sectionPromptIds.push({ isSubSectionHeader: true, name: subName });
 
-            // Parent sections stay openable normally (no tray click handler)
-            // Just set up for receiving drops
-            converted++;
-            return;
+                    // Collect prompts from this sub-section
+                    const subContent = subSection.querySelector('.nemo-section-content');
+                    if (subContent) {
+                        const subPrompts = subContent.querySelectorAll(':scope > li.completion_prompt_manager_prompt');
+                        subPrompts.forEach(el => {
+                            const identifier = el.getAttribute('data-pm-identifier');
+                            const nameEl = el.querySelector('.completion_prompt_manager_prompt_name a');
+                            const name = nameEl?.textContent?.trim() || identifier;
+                            if (identifier) {
+                                sectionPromptIds.push({ identifier, name });
+                            }
+                            el.classList.add('nemo-tray-hidden-prompt');
+                        });
+                    }
+
+                    // Mark sub-section as handled (so it doesn't get its own tray)
+                    subSection.dataset.trayConverted = 'true';
+                    subSection.classList.add('nemo-tray-section');
+                    subSection._nemoPromptIds = [];
+                });
+
+                // Store on section element and cache
+                section._nemoPromptIds = sectionPromptIds;
+                sectionPromptIdsCache.set(sectionName, sectionPromptIds);
+
+                // Continue with normal tray conversion
+                section.dataset.trayConverted = 'true';
+                section.classList.add('nemo-tray-section');
+                content.classList.add('nemo-tray-hidden-content');
+
+                updateSectionProgressFromStoredIds(section);
+                setTimeout(() => updateSectionProgressFromStoredIds(section), 100);
+                setTimeout(() => updateSectionProgressFromStoredIds(section), 500);
+
+                // Set up click handler
+                const clickHandler = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[NemoTray] Clicked section:', getSectionId(section));
+                    toggleTray(section);
+                };
+                const keyHandler = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        console.log('[NemoTray] Keyboard activated section:', getSectionId(section));
+                        toggleTray(section);
+                    }
+                };
+                summary.setAttribute('tabindex', '0');
+                summary.setAttribute('role', 'button');
+                summary.setAttribute('aria-expanded', 'false');
+                summary.removeEventListener('click', summary._trayClickHandler);
+                summary.removeEventListener('keydown', summary._trayKeyHandler);
+                summary._trayClickHandler = clickHandler;
+                summary._trayKeyHandler = keyHandler;
+                summary.addEventListener('click', clickHandler);
+                summary.addEventListener('keydown', keyHandler);
+                section.open = false;
+
+                converted++;
+                return;
+            } else {
+                console.log('[NemoTray] No direct prompts in section (parent with sub-sections only):', sectionName);
+
+                // Mark as converted but with empty prompts
+                section.dataset.trayConverted = 'true';
+                section.classList.add('nemo-tray-section');
+                section._nemoPromptIds = [];
+
+                // Parent sections stay openable normally (no tray click handler)
+                // Just set up for receiving drops
+                converted++;
+                return;
+            }
         }
 
         console.log('[NemoTray] Processing section:', sectionName, { hasPromptsInDOM, hasCachedData: !!cachedPromptIds });
@@ -542,6 +619,39 @@ function convertToTrayMode() {
                 // HIDE prompts instead of removing them (preserves DOM for mode switching)
                 el.classList.add('nemo-tray-hidden-prompt');
             });
+
+            // If this section has sub-sections, collect their prompts too
+            if (hasSubSections) {
+                const subSections = content.querySelectorAll(':scope > details.nemo-engine-section');
+                subSections.forEach(subSection => {
+                    const subSummary = subSection.querySelector('summary');
+                    const subNameEl = subSummary?.querySelector('.completion_prompt_manager_prompt_name a');
+                    const subName = subNameEl?.textContent?.trim() || 'Sub-Section';
+
+                    // Add a sub-section header marker
+                    sectionPromptIds.push({ isSubSectionHeader: true, name: subName });
+
+                    // Collect prompts from this sub-section
+                    const subContent = subSection.querySelector('.nemo-section-content');
+                    if (subContent) {
+                        const subPrompts = subContent.querySelectorAll(':scope > li.completion_prompt_manager_prompt');
+                        subPrompts.forEach(el => {
+                            const identifier = el.getAttribute('data-pm-identifier');
+                            const nameEl = el.querySelector('.completion_prompt_manager_prompt_name a');
+                            const name = nameEl?.textContent?.trim() || identifier;
+                            if (identifier) {
+                                sectionPromptIds.push({ identifier, name });
+                            }
+                            el.classList.add('nemo-tray-hidden-prompt');
+                        });
+                    }
+
+                    // Mark sub-section as handled (so it doesn't get its own tray)
+                    subSection.dataset.trayConverted = 'true';
+                    subSection.classList.add('nemo-tray-section');
+                    subSection._nemoPromptIds = [];
+                });
+            }
 
             // Store in persistent cache (survives DOM refreshes)
             sectionPromptIdsCache.set(sectionName, sectionPromptIds);
@@ -1004,7 +1114,13 @@ function openTray(section) {
 
     const prompts = [];
 
-    storedPromptIds.forEach(({ identifier, name }) => {
+    storedPromptIds.forEach(({ identifier, name, isSubSectionHeader }) => {
+        // Handle sub-section header markers
+        if (isSubSectionHeader) {
+            prompts.push({ isSubSectionHeader: true, name });
+            return;
+        }
+
         // Get enabled state from promptManager data (the source of truth)
         let isEnabled = false;
         if (promptManager) {
@@ -1043,8 +1159,8 @@ function openTray(section) {
     tray.className = `nemo-category-tray ${isCompact ? 'nemo-tray-compact' : ''}`;
     tray.setAttribute('tabindex', '0'); // Make tray focusable for keyboard nav
 
-    const enabledCount = prompts.filter(p => p.isEnabled).length;
-    const allEnabled = enabledCount === prompts.length;
+    const enabledCount = prompts.filter(p => !p.isSubSectionHeader && p.isEnabled).length;
+    const allEnabled = enabledCount === prompts.filter(p => !p.isSubSectionHeader).length;
 
     // Get presets for this section
     const sectionPresets = getPresetsForSection(sectionId);
@@ -1094,6 +1210,16 @@ function openTray(section) {
 
     // Show all prompts as cards with tooltips and directive styling
     prompts.forEach((p, index) => {
+        // Render sub-section header divider
+        if (p.isSubSectionHeader) {
+            trayContent += `
+                <div class="nemo-tray-subsection-divider">
+                    <span class="nemo-tray-subsection-name">${escapeHtml(p.name)}</span>
+                </div>
+            `;
+            return;
+        }
+
         const enabledClass = p.isEnabled ? 'nemo-prompt-card-enabled' : '';
         const highlightClass = p.highlight ? 'nemo-prompt-card-highlighted' : '';
         // Escape identifier for use in data attribute
@@ -1169,7 +1295,7 @@ function openTray(section) {
     trayContent += `
         </div>
         <div class="nemo-tray-footer">
-            <span class="nemo-tray-hint">Click to toggle • Drag ≡ to reorder • ${prompts.filter(p => p.isEnabled).length}/${prompts.length} active</span>
+            <span class="nemo-tray-hint">Click to toggle • Drag ≡ to reorder • ${prompts.filter(p => !p.isSubSectionHeader && p.isEnabled).length}/${prompts.filter(p => !p.isSubSectionHeader).length} active</span>
         </div>
     `;
 
@@ -2506,12 +2632,14 @@ function getDirectCountsFromStoredIds(section) {
         return { enabled: 0, total: 0 };
     }
 
-    const totalCount = storedPromptIds.length;
+    // Filter out sub-section header markers (they don't represent actual prompts)
+    const actualPrompts = storedPromptIds.filter(p => !p.isSubSectionHeader);
+    const totalCount = actualPrompts.length;
     let enabledCount = 0;
 
     if (promptManager) {
         const activeCharacter = promptManager.activeCharacter;
-        storedPromptIds.forEach(({ identifier }) => {
+        actualPrompts.forEach(({ identifier }) => {
             try {
                 const promptOrderEntry = promptManager.getPromptOrderEntry(activeCharacter, identifier);
                 if (promptOrderEntry?.enabled) {

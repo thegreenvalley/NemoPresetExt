@@ -2184,6 +2184,21 @@ span.completion_prompt_manager_prompt_name a.prompt-manager-inspect-action { whi
     min-height: 50px;
 }
 
+/* Sub-section divider in tray view */
+.nemo-tray-subsection-divider {
+    width: 100%;
+    padding: 6px 8px 4px;
+    margin-top: 4px;
+    font-size: 0.85em;
+    opacity: 0.7;
+    border-left: 2px solid var(--SmartThemeQuoteColor, #888);
+    grid-column: 1 / -1;
+}
+
+.nemo-tray-subsection-name {
+    font-weight: 500;
+}
+
 /* Drop target indicator for section headers */
 .nemo-drop-target-active {
     background: rgba(74, 158, 255, 0.2) !important;
