@@ -3222,9 +3222,6 @@ details.nemo-engine-section .nemo-enabled-count {
     border-color: rgba(46, 204, 113, 0.7) !important;
 }
 
-.nemo-accordion-section li.completion_prompt_manager_prompt:has(.prompt-manager-toggle-action.fa-toggle-on) .completion_prompt_manager_prompt_name a {
-    color: #5ddb8a !important;
-}
 
 /* Disabled state - match when toggle button does NOT have fa-toggle-on */
 .nemo-accordion-section li.completion_prompt_manager_prompt:has(.prompt-manager-toggle-action:not(.fa-toggle-on)) {
@@ -3252,9 +3249,7 @@ details.nemo-engine-section .nemo-enabled-count {
     border-color: rgba(46, 204, 113, 0.7) !important;
 }
 
-.nemo-engine-section li.completion_prompt_manager_prompt:has(.prompt-manager-toggle-action.fa-toggle-on) .completion_prompt_manager_prompt_name a {
-    color: #5ddb8a !important;
-}
+
 
 .nemo-engine-section li.completion_prompt_manager_prompt:has(.prompt-manager-toggle-action:not(.fa-toggle-on)) {
     background: rgba(0, 0, 0, 0.12) !important;
